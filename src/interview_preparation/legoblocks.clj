@@ -2,52 +2,77 @@
 
 (def lego-mod 1000000007)
 
-(defn seq-row-perm
-  []
-  (let [initial-values [1 2 4 8]
-        add-mod #(mod (+ %1 %2 %3 %4) lego-mod)]
-    (map first
-         (iterate (fn [[a b c d]] [b c d (add-mod a b c d)]) initial-values))))
+(def lego-length 1000)
 
-(defn one-row-perm
-  [n]
-  (nth (seq-row-perm) n))
+(defn loop-arr []
+  (let [^longs initial-values [1 2 4 8]
+        add-mod #(mod (+ ^long %1 ^long %2 ^long %3 ^long %4) ^long lego-mod)]
+    (loop [size 4
+           arr initial-values]
+      (if (= size lego-length)
+        arr
+        (recur
+         (inc size)
+         (conj arr (add-mod
+                    (nth arr (- size 1))
+                    (nth arr (- size 2))
+                    (nth arr (- size 3))
+                    (nth arr (- size 4)))))))))
 
-(def mem-perm (memoize one-row-perm))
 
-(defn seq-all-combinations
-  [one-perm] (iterate #(mod (* % one-perm) lego-mod) one-perm))
+(def row-arr (loop-arr))
 
-(defn all-combinations
-  [h w] (nth (seq-all-combinations (mem-perm (- w 1))) (- h 1)))
+(defn power-elem ^long
+  [base exponent]
+  (loop [n base e 1]
+    (if (= e exponent)
+      n
+      (recur (mod (* n base) lego-mod) (inc e)))))
 
-(def mem-comb (memoize all-combinations))
+(defn power-row ^longs
+  [h w arr]
+  (loop
+   [new-arr ^longs []
+    width 0]
+    (if (= width w)
+      new-arr
+      (recur  (conj new-arr (power-elem (nth arr width) h)) (inc width)))))
+
+(defn calc-next-sum
+  [^longs coll ^longs power-arr]
+  (loop [acc 0
+         c-idx 0
+         p-idx (- (count coll) 1)]
+    (if (= p-idx -1)
+      acc
+      (recur
+       (mod (+ acc (mod (* (nth coll c-idx) (nth power-arr p-idx)) lego-mod)) lego-mod)
+       (inc c-idx)
+       (dec p-idx)))))
 
 (defn calc-next
-  [coll h]
-  (loop [c coll
-         acc 0]
-    (if (empty? c)
-      (conj coll (mod (- ( mem-comb h (+ 1 (count coll))) acc) lego-mod))
-      (recur 
-       (rest c) 
-       (mod (+ acc (* (first c) (mem-comb h (count c)))) lego-mod)
-       ))))
+  [^longs coll ^longs power-arr]
+  (mod (- (nth power-arr (count coll)) (calc-next-sum coll power-arr)) lego-mod))
 
-(def mem-cal-next (memoize calc-next))
-
-(defn calc 
+(defn calc
   [h w]
-  (loop [coll [1]]
-    (if (= w (count coll))
-      coll
-      (recur (mem-cal-next coll h))
-      )
-    ))
+  (let [pow-arr (power-row h w row-arr)]
+    (loop [coll (transient [1])]
+      (if (= w (count coll))
+        (persistent! coll)
+        (recur (conj! coll (calc-next coll pow-arr)))))))
 
-(def mem-calc (memoize calc))
+(def memo-calc (memoize calc))
 
 (defn legoBlocks [n m]
-  (last (mem-calc n m)))
+  (peek (memo-calc n m)))
 
-(legoBlocks 7 10)
+;; (calc-next [1] 2)
+;; (legoBlocks 271 700)
+;; (legoBlocks 418 840)
+;; (legoBlocks 570 364)
+;; (legoBlocks 623 795)
+;; (legoBlocks 174 848)
+;; (legoBlocks 432 463)
+;; (legoBlocks 683 391)
+;; (legoBlocks 293 792)
